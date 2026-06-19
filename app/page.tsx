@@ -67,6 +67,7 @@ export default function Home() {
   const [businessType, setBusinessType] = useState("");
   const [zone, setZone] = useState("");
   const [total, setTotal] = useState(20);
+  const [skip, setSkip] = useState(0);
   const [job, setJob] = useState<JobState | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
   const esRef = useRef<EventSource | null>(null);
@@ -85,11 +86,12 @@ export default function Home() {
     const search = `${businessType.trim()} en ${zone.trim()}`;
     setJob({ status: "running", progress: 0, total, current_name: "Iniciando...", error: null });
     setJobId(null);
+    // skip ya está seteado — se incrementa con "Buscar siguientes" o se resetea manualmente
     try {
       const res = await fetch(`${BACKEND}/api/scrape`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ search, total }),
+        body: JSON.stringify({ search, total, skip }),
       });
       if (!res.ok) throw new Error(await res.text());
       const { job_id } = await res.json();
@@ -192,7 +194,7 @@ export default function Home() {
               <label className="mb-1.5 block text-sm font-medium text-gray-700">Tipo de negocio</label>
               <input
                 value={businessType}
-                onChange={(e) => setBusinessType(e.target.value)}
+                onChange={(e) => { setBusinessType(e.target.value); setSkip(0); setJob(null); }}
                 placeholder="ej: restaurantes, ferreterías, clínicas..."
                 required
                 disabled={job?.status === "running"}
@@ -203,7 +205,7 @@ export default function Home() {
               <label className="mb-1.5 block text-sm font-medium text-gray-700">Zona</label>
               <input
                 value={zone}
-                onChange={(e) => setZone(e.target.value)}
+                onChange={(e) => { setZone(e.target.value); setSkip(0); setJob(null); }}
                 placeholder="ej: Buenos Aires, Palermo, CDMX..."
                 required
                 disabled={job?.status === "running"}
@@ -249,19 +251,32 @@ export default function Home() {
           {job?.status === "done" && (
             <div className="mt-6 space-y-3">
               <div className="h-2 w-full rounded-full bg-green-500" />
-              <div className="flex items-center justify-between rounded-xl border border-green-100 bg-green-50 px-4 py-3">
-                <div>
-                  <p className="text-sm font-medium text-green-600">¡Listo!</p>
-                  <p className="text-xs text-gray-500">{job.total} resultados encontrados</p>
+              <div className="rounded-xl border border-green-100 bg-green-50 px-4 py-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-green-600">¡Listo!</p>
+                    <p className="text-xs text-gray-500">
+                      Resultados {skip + 1}–{skip + job.total}
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleDownload}
+                    className="flex items-center gap-2 rounded-lg bg-green-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-600 active:scale-95"
+                  >
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Descargar CSV
+                  </button>
                 </div>
                 <button
-                  onClick={handleDownload}
-                  className="flex items-center gap-2 rounded-lg bg-green-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-600 active:scale-95"
+                  onClick={() => {
+                    setSkip((prev) => prev + job.total);
+                    setJob(null);
+                  }}
+                  className="w-full rounded-lg border border-green-200 bg-white py-2 text-sm font-medium text-green-600 transition hover:bg-green-50 active:scale-95"
                 >
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                  </svg>
-                  Descargar CSV
+                  Buscar los siguientes {job.total} →
                 </button>
               </div>
             </div>

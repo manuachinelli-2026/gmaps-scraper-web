@@ -32,9 +32,10 @@ jobs: Dict[str, Any] = {}
 class ScrapeRequest(BaseModel):
     search: str
     total: int = 20
+    skip: int = 0
 
 
-def run_scrape_job(job_id: str, search: str, total: int):
+def run_scrape_job(job_id: str, search: str, total: int, skip: int = 0):
     def on_progress(current: int, total_count: int, name: str):
         jobs[job_id].update({
             "progress": current,
@@ -43,7 +44,7 @@ def run_scrape_job(job_id: str, search: str, total: int):
         })
 
     try:
-        places = scrape_places(search, total, on_progress=on_progress)
+        places = scrape_places(search, total, skip=skip, on_progress=on_progress)
         jobs[job_id].update({
             "status": "done",
             "places": [asdict(p) for p in places],
@@ -70,7 +71,7 @@ async def start_scrape(request: ScrapeRequest):
         "error": None,
     }
 
-    thread = threading.Thread(target=run_scrape_job, args=(job_id, request.search, request.total), daemon=True)
+    thread = threading.Thread(target=run_scrape_job, args=(job_id, request.search, request.total, request.skip), daemon=True)
     thread.start()
 
     return {"job_id": job_id}

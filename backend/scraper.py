@@ -98,10 +98,12 @@ def extract_place(page: Page) -> Place:
 def scrape_places(
     search_for: str,
     total: int,
+    skip: int = 0,
     on_progress: Optional[Callable[[int, int, str], None]] = None
 ) -> List[Place]:
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
     places: List[Place] = []
+    need = skip + total
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
@@ -120,14 +122,14 @@ def scrape_places(
                 page.wait_for_selector('//a[contains(@href, "https://www.google.com/maps/place")]')
                 found = page.locator('//a[contains(@href, "https://www.google.com/maps/place")]').count()
                 logging.info(f"Found so far: {found}")
-                if found >= total:
+                if found >= need:
                     break
                 if found == previously_counted:
                     logging.info("No more results available")
                     break
                 previously_counted = found
 
-            listings = page.locator('//a[contains(@href, "https://www.google.com/maps/place")]').all()[:total]
+            listings = page.locator('//a[contains(@href, "https://www.google.com/maps/place")]').all()[skip:skip + total]
             listings = [listing.locator("xpath=..") for listing in listings]
             actual_total = len(listings)
             logging.info(f"Total to scrape: {actual_total}")
